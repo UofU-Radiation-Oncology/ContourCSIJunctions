@@ -30,17 +30,10 @@ namespace VMS.TPS
         }
         // variable initialization
         public System.Windows.Media.Brush Foreground { get; set; }
-        private TextBlock _TitleBlock;
-        private TextBlock _AuthorBlock;
-        private TextBlock _patientNameBlock;
-        private TextBlock _patientInfoBlock;
-        private TextBlock _notesBlock;
         private Patient _patient;
         private Course _course;
-        private StructureSet _structureSet;
+        private StructureSet _ss;
         private PlanSetup _plan;
-        private List<VMS.TPS.Common.Model.API.Structure> _HiResContourList;
-        private WinForms.CheckedListBox _checkedStructureBox;
         private ListBox structureList;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -48,165 +41,162 @@ namespace VMS.TPS
         {
             // Validate patient in current context
             ValidatePatient(context);
+            // Validate the course in current context
+            ValidateCourse(context);
             // Validate structure set in current context
             ValidateStructureSet(context);
+            // Validate plan in current context
+            ValidatePlan(context);
             try
             {
                 _patient = GetPatient(context);
-                _structureSet = GetStructureSet(context);
-
-                // NOT NEEDED (MOST LIKELY)
+                _ss = GetStructureSet(context);
                 _course = GetCourse(context);
                 _plan = GetPlan(context);
 
+                var beamGroups = _plan.Beams.Where(b => !b.IsSetupField).GroupBy(b => new { b.IsocenterPosition.x, b.IsocenterPosition.y, b.IsocenterPosition.z }).ToList();
 
-                // Get the list of high resolution structures
-                _HiResContourList = new List<VMS.TPS.Common.Model.API.Structure>();
-                foreach (var contour in _structureSet.Structures)
-                {
-                    if(contour.IsHighResolution == true)
-                    {
-                        _HiResContourList.Add(contour);
-                    }
-                }
+                ibn groupIdx = 1;
+                var groupStructures
 
-                #region Starting to generate the UI
+                MessageBox.Show(string.Format("You are working with patient {0}, course {1}, structure set {2} and plan {3}",_patient.Id, _course.Id,_structureSet.Id, _plan.Id));
+                //#region Starting to generate the UI
 
-                // main container
-                StackPanel spMain = new StackPanel
-                {
-                    Orientation = Orientation.Vertical,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 10, 0, 0),
-                    Width = 600
-                };
-                // title
-                _TitleBlock = new TextBlock
-                {
-                    Text = "Structure Downsampler",
-                    FontSize = 32,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 0, 0, 0),
-                    Foreground = System.Windows.Media.Brushes.MediumBlue
-                };
+                //// main container
+                //StackPanel spMain = new StackPanel
+                //{
+                //    Orientation = Orientation.Vertical,
+                //    HorizontalAlignment = HorizontalAlignment.Left,
+                //    Margin = new Thickness(0, 10, 0, 0),
+                //    Width = 600
+                //};
+                //// title
+                //_TitleBlock = new TextBlock
+                //{
+                //    Text = "Structure Downsampler",
+                //    FontSize = 32,
+                //    FontWeight = FontWeights.Bold,
+                //    HorizontalAlignment = HorizontalAlignment.Left,
+                //    Margin = new Thickness(0, 0, 0, 0),
+                //    Foreground = System.Windows.Media.Brushes.MediumBlue
+                //};
 
-                // author info
-                _AuthorBlock = new TextBlock
-                {
-                    Text = "University of Utah Huntsman Cancer Institute (nicholas.nelson@hci.utah.edu)",
-                    FontSize = 14,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 0, 0, 0),
-                    TextWrapping = TextWrapping.Wrap
-                };
+                //// author info
+                //_AuthorBlock = new TextBlock
+                //{
+                //    Text = "University of Utah Huntsman Cancer Institute (nicholas.nelson@hci.utah.edu)",
+                //    FontSize = 14,
+                //    HorizontalAlignment = HorizontalAlignment.Left,
+                //    Margin = new Thickness(0, 0, 0, 0),
+                //    TextWrapping = TextWrapping.Wrap
+                //};
 
-                _notesBlock = new TextBlock
-                {
-                    Text = string.Format("This script will identify high resolution Eclipse contours and, if selected, convert them to default resolution. This" +
-                "is useful for optimizations on large datasets (such as VMAT CSI) that have a lot of high resolution structures (which often come from MIM Protege)"),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new Thickness(0, 5, 5, 0),
-                    TextWrapping = TextWrapping.Wrap,
-                    VerticalAlignment = VerticalAlignment.Bottom
-                };
+                //_notesBlock = new TextBlock
+                //{
+                //    Text = string.Format("This script will identify high resolution Eclipse contours and, if selected, convert them to default resolution. This" +
+                //"is useful for optimizations on large datasets (such as VMAT CSI) that have a lot of high resolution structures (which often come from MIM Protege)"),
+                //    HorizontalAlignment = HorizontalAlignment.Left,
+                //    Margin = new Thickness(0, 5, 5, 0),
+                //    TextWrapping = TextWrapping.Wrap,
+                //    VerticalAlignment = VerticalAlignment.Bottom
+                //};
 
-                // Patient info
-                _patientNameBlock = new TextBlock
-                {
-                    Text = "PATIENT INFO",
-                    FontSize = 28,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 10, 0, 0)
-                };
+                //// Patient info
+                //_patientNameBlock = new TextBlock
+                //{
+                //    Text = "PATIENT INFO",
+                //    FontSize = 28,
+                //    FontWeight = FontWeights.Bold,
+                //    HorizontalAlignment = HorizontalAlignment.Center,
+                //    Margin = new Thickness(0, 10, 0, 0)
+                //};
 
-                _patientInfoBlock = new TextBlock
-                {
-                    Text = string.Format("Name: {0}\n" +
-                    "Structure Set ID: {1}\n", _patient.Name, _structureSet.Id),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 0)
-                };
+                //_patientInfoBlock = new TextBlock
+                //{
+                //    Text = string.Format("Name: {0}\n" +
+                //    "Structure Set ID: {1}\n", _patient.Name, _structureSet.Id),
+                //    HorizontalAlignment = HorizontalAlignment.Center,
+                //    Margin = new Thickness(0, 0, 0, 0)
+                //};
 
-                // table title
-                var tableTitleBlock = new TextBlock
-                {
-                    Text = "High resolution structures",
-                    FontSize = 24,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = new Thickness(0, 0, 0, 0)
-                };
+                //// table title
+                //var tableTitleBlock = new TextBlock
+                //{
+                //    Text = "High resolution structures",
+                //    FontSize = 24,
+                //    FontWeight = FontWeights.Bold,
+                //    HorizontalAlignment = HorizontalAlignment.Center,
+                //    Margin = new Thickness(0, 0, 0, 0)
+                //};
 
-                structureList = new ListBox
-                {
-                    SelectionMode = SelectionMode.Multiple,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Width = 350
-                };
+                //structureList = new ListBox
+                //{
+                //    SelectionMode = SelectionMode.Multiple,
+                //    HorizontalAlignment = HorizontalAlignment.Center,
+                //    Width = 350
+                //};
 
-                foreach (var contour in _HiResContourList)
-                {
-                    structureList.Items.Add(new CheckBox
-                    {
-                        Content = string.Format("{0} (Volume = {1} cc)",contour.Id,Math.Round(contour.Volume, 2)),
-                        Tag = contour,
-                        IsChecked = false
-                    });
-                }
+                //foreach (var contour in _HiResContourList)
+                //{
+                //    structureList.Items.Add(new CheckBox
+                //    {
+                //        Content = string.Format("{0} (Volume = {1} cc)",contour.Id,Math.Round(contour.Volume, 2)),
+                //        Tag = contour,
+                //        IsChecked = false
+                //    });
+                //}
 
-                _checkedStructureBox = new WinForms.CheckedListBox
-                {
-                    Dock = WinForms.DockStyle.Fill,
-                    CheckOnClick = true // lets you click with single click
-                };
+                //_checkedStructureBox = new WinForms.CheckedListBox
+                //{
+                //    Dock = WinForms.DockStyle.Fill,
+                //    CheckOnClick = true // lets you click with single click
+                //};
 
-                // button to calculate CBCT dose
-                var _convertStructuresButton = new Button
-                {
+                //// button to calculate CBCT dose
+                //var _convertStructuresButton = new Button
+                //{
 
-                    // button content - what it says
-                    Content = "Convert selected structures to default resolution",
+                //    // button content - what it says
+                //    Content = "Convert selected structures to default resolution",
 
-                    // a little padding
-                    Padding = new Thickness(10),
-                    Cursor = Cursors.Hand,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    Width = 350,
-                    Margin = new Thickness(10, 10, 10, 10)
-                };
+                //    // a little padding
+                //    Padding = new Thickness(10),
+                //    Cursor = Cursors.Hand,
+                //    HorizontalAlignment = HorizontalAlignment.Center,
+                //    Width = 350,
+                //    Margin = new Thickness(10, 10, 10, 10)
+                //};
 
-                #endregion End of ComboBox/StackPanel setup
+                //#endregion End of ComboBox/StackPanel setup
 
-                #region Calculation/replanning button clicking region
-                _convertStructuresButton.Click += _convertStructuresButton_Click;
+                //#region Calculation/replanning button clicking region
+                //_convertStructuresButton.Click += _convertStructuresButton_Click;
 
-                #endregion End of Calculation region
+                //#endregion End of Calculation region
 
-                #region Final UI presentation
-                // add to main stack panel
-                spMain.Children.Add(_TitleBlock);
-                spMain.Children.Add(_AuthorBlock);
-                spMain.Children.Add(_notesBlock);
-                spMain.Children.Add(_patientNameBlock);
-                spMain.Children.Add(_patientInfoBlock);
-                spMain.Children.Add(tableTitleBlock);
-                spMain.Children.Add(structureList);
-                spMain.Children.Add(_convertStructuresButton);
-                spMain.VerticalAlignment = VerticalAlignment.Stretch;
+                //#region Final UI presentation
+                //// add to main stack panel
+                //spMain.Children.Add(_TitleBlock);
+                //spMain.Children.Add(_AuthorBlock);
+                //spMain.Children.Add(_notesBlock);
+                //spMain.Children.Add(_patientNameBlock);
+                //spMain.Children.Add(_patientInfoBlock);
+                //spMain.Children.Add(tableTitleBlock);
+                //spMain.Children.Add(structureList);
+                //spMain.Children.Add(_convertStructuresButton);
+                //spMain.VerticalAlignment = VerticalAlignment.Stretch;
 
 
 
-                // window settings
-                window.Title = "Structure Downsampler";
-                window.FontFamily = new System.Windows.Media.FontFamily("Calibri");
-                window.FontSize = 14;
-                window.Width = spMain.Width + 50;
-                window.Height = spMain.Height + 50;
-                window.WindowStartupLocation = WindowStartupLocation.Manual;
-                window.Content = spMain;
-                #endregion End of final UI presentation
+                //// window settings
+                //window.Title = "Structure Downsampler";
+                //window.FontFamily = new System.Windows.Media.FontFamily("Calibri");
+                //window.FontSize = 14;
+                //window.Width = spMain.Width + 50;
+                //window.Height = spMain.Height + 50;
+                //window.WindowStartupLocation = WindowStartupLocation.Manual;
+                //window.Content = spMain;
+                //#endregion End of final UI presentation
 
             }
             catch (Exception ex)
@@ -216,7 +206,65 @@ namespace VMS.TPS
             }
         }
 
+
+
         //HELPER FUNCTIONS
+
+        /// <summary>
+        /// Validates that the current context is a Patient
+        /// <para></para>Will alert the user and end the script
+        /// </summary>
+        /// <param name="context"></param>
+        private void ValidatePatient(ScriptContext context)
+        {
+            if (context.Patient == null)
+            {
+                MessageBox.Show("Please open a patient");
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the current context is a Course
+        /// <para></para>Will alert the user and end the script
+        /// </summary>
+        /// <param name="context"></param>
+        private void ValidateCourse(ScriptContext context)
+        {
+            if (context.Course == null)
+            {
+                MessageBox.Show("Please open a course");
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the current context is a Course
+        /// <para></para>Will alert the user and end the script
+        /// </summary>
+        /// <param name="context"></param>
+        private void ValidateStructureSet(ScriptContext context)
+        {
+            if (context.StructureSet == null)
+            {
+                MessageBox.Show("Please open a structure set");
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Validates that the current context is a plan
+        /// <para></para>Will alert the user and end the script
+        /// </summary>
+        /// <param name="context"></param>
+        private void ValidatePlan(ScriptContext context)
+        {
+            if (context.StructureSet == null)
+            {
+                MessageBox.Show("Please open a plan");
+                return;
+            }
+        }
 
         /// <summary>
         /// Gets the image of the current plan (which should be the CT sim)
@@ -277,23 +325,7 @@ namespace VMS.TPS
             return context.Course;
         }
 
-        /// <summary>
-        /// Validates that the current context is a Course
-        /// <para></para>Will alert the user and end the script
-        /// </summary>
-        /// <param name="context"></param>
-        private void ValidateStructureSet(ScriptContext context)
-        {
-            if (context.StructureSet == null)
-            {
-                MessageBox.Show("Please open a structure set (the one you want to downsample from)");
-                return;
-            }
-            //else
-            //{
-            //    VerifyStructureTypes(_structureSet)
-            //}
-        }
+
 
         /// <summary>
         /// Validates that the current context is a Course
@@ -310,34 +342,6 @@ namespace VMS.TPS
         //        }
         //    }
         //}
-
-        ///// <summary>
-        ///// Validates that the current context is a Course
-        ///// <para></para>Will alert the user and end the script
-        ///// </summary>
-        ///// <param name="context"></param>
-        //private void ValidateCourse(ScriptContext context)
-        //{
-        //    if (context.Course == null)
-        //    {
-        //        MessageBox.Show("Please open a course");
-        //        return;
-        //    }
-        //}
-
-        /// <summary>
-        /// Validates that the current context is a Patient
-        /// <para></para>Will alert the user and end the script
-        /// </summary>
-        /// <param name="context"></param>
-        private void ValidatePatient(ScriptContext context)
-        {
-            if (context.Patient == null)
-            {
-                MessageBox.Show("Please open a patient");
-                return;
-            }
-        }
 
         /// <summary>
         /// Gets the patient in the current context
