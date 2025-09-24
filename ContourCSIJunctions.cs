@@ -153,7 +153,7 @@ namespace VMS.TPS
                             int maxSliceB = (int)Math.Round(((structB.MeshGeometry.Bounds.Z + structB.MeshGeometry.Bounds.SizeZ) - image.Origin.z) / image.ZRes);
 
                             int overlapMinSlice = Math.Max(minSliceA, minSliceB);
-                            int overlapMaxSlice = Math.Min(maxSliceA, maxSliceB);
+                            int overlapMaxSlice = Math.Min(maxSliceA, maxSliceB); // test
 
                             if (overlapMinSlice > overlapMaxSlice)
                                 continue;
