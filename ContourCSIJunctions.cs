@@ -88,9 +88,9 @@ namespace VMS.TPS
 
 
                     _patient.BeginModifications();
-                    
+
                     // generate an isocenter structure (PTV_CSI clipped by min and max Z coordinates)
-                    for (int i=0; i < beamGroups.Count; i++) 
+                    for (int i = 0; i < beamGroups.Count; i++)
                     {
                         var iso = beamGroups[i];
 
@@ -122,57 +122,64 @@ namespace VMS.TPS
                                 isoStruct.AddContourOnImagePlane(contour, z);
                             }
                         }
+                    }
+                    
+                    // Contour junctions between isocenter contours
+                    for (int j = 0; j < beamGroups.Count - 1; j++) // if beamCount is 3, j will be 1 and 2
+                    {
+                        string structIdA = $"PTV_ISO_{beamGroups.Count - j}";
+                        string structIdB = $"PTV_ISO_{beamGroups.Count - (j + 1)}";
+                        string juncStructId = $"JUNC_{beamGroups.Count - (j + 1)}";
 
-                        // Contour junctions between isocenter contours
-                        for (int j = 0; j < beamGroups.Count - 1; j++)
+                        Structure structA = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdA));
+                        Structure structB = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdB));
+
+                        // for debugging
+                        //MessageBox.Show($"j index: {j}\n" +
+                        //    $"structIdA: {structIdA}\n" +
+                        //    $"structIdB: {structIdB}\n" +
+                        //    $"juncStructId: {juncStructId}");
+
+                        if (structA == null || structB == null)
+                            continue;
+
+                        // for debugging    
+                        //MessageBox.Show("Existing structures:\n" + string.Join("\n", _ss.Structures.Select(s => s.Id)));
+
+                        if (_ss.Structures.Any(s => s.Id.Equals(juncStructId)))
                         {
-                            string structIdA = $"PTV_ISO_{beamGroups.Count - j}";
-                            string structIdB = $"PTV_ISO_{beamGroups.Count - (j + 1)}";
-                            string juncStructId = $"JUNC_{beamGroups.Count - (j + 1)}";
+                            MessageBox.Show($"{juncStructId} exists. Skipping.");
+                            continue;
+                        }
 
-                            Structure structA = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdA));
-                            Structure structB = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdB));
+                        Structure juncStruct = _ss.AddStructure("CONTROL", juncStructId);
 
-                            if (structA == null || structB == null)
-                                continue;
-                            
-                            MessageBox.Show("Existing structures:\n" + string.Join("\n", _ss.Structures.Select(s => s.Id)));
+                        int minSliceA = (int)Math.Round((structA.MeshGeometry.Bounds.Z - image.Origin.z) / image.ZRes);
+                        int maxSliceA = (int)Math.Round(((structA.MeshGeometry.Bounds.Z + structA.MeshGeometry.Bounds.SizeZ) - image.Origin.z) / image.ZRes);
 
-                            if (_ss.Structures.Any(s => s.Id.Equals(juncStructId)))
+                        int minSliceB = (int)Math.Round((structB.MeshGeometry.Bounds.Z - image.Origin.z) / image.ZRes);
+                        int maxSliceB = (int)Math.Round(((structB.MeshGeometry.Bounds.Z + structB.MeshGeometry.Bounds.SizeZ) - image.Origin.z) / image.ZRes);
+
+                        int overlapMinSlice = Math.Max(minSliceA, minSliceB);
+                        int overlapMaxSlice = Math.Min(maxSliceA, maxSliceB); // test
+
+                        if (overlapMinSlice > overlapMaxSlice)
+                            continue;
+
+                        for (int z = overlapMinSlice; z <= overlapMaxSlice; z++)
+                        {
+                            var contoursA = structA.GetContoursOnImagePlane(z);
+                            var contoursB = structB.GetContoursOnImagePlane(z);
+
+                            if (contoursA.Any() && contoursB.Any())
                             {
-                                MessageBox.Show($"{juncStructId} exists. Skipping.");
-                                continue;
-                            }
-
-                            Structure juncStruct = _ss.AddStructure("CONTROL", juncStructId);
-
-                            int minSliceA = (int)Math.Round((structA.MeshGeometry.Bounds.Z - image.Origin.z) / image.ZRes);
-                            int maxSliceA = (int)Math.Round(((structA.MeshGeometry.Bounds.Z + structA.MeshGeometry.Bounds.SizeZ) - image.Origin.z) / image.ZRes);
-
-                            int minSliceB = (int)Math.Round((structB.MeshGeometry.Bounds.Z - image.Origin.z) / image.ZRes);
-                            int maxSliceB = (int)Math.Round(((structB.MeshGeometry.Bounds.Z + structB.MeshGeometry.Bounds.SizeZ) - image.Origin.z) / image.ZRes);
-
-                            int overlapMinSlice = Math.Max(minSliceA, minSliceB);
-                            int overlapMaxSlice = Math.Min(maxSliceA, maxSliceB); // test
-
-                            if (overlapMinSlice > overlapMaxSlice)
-                                continue;
-
-                            for (int z = overlapMinSlice; z <= overlapMaxSlice; z++)
-                            {
-                                var contoursA = structA.GetContoursOnImagePlane(z);
-                                var contoursB = structB.GetContoursOnImagePlane(z);
-
-                                if (contoursA.Any() && contoursB.Any())
+                                foreach (var contour in contoursA.Concat(contoursB))
                                 {
-                                    foreach (var contour in contoursA.Concat(contoursB))
-                                    {
-                                        juncStruct.AddContourOnImagePlane(contour, z);
-                                    }
+                                    juncStruct.AddContourOnImagePlane(contour, z);
                                 }
                             }
-
                         }
+
                     }
                 }
                 catch (Exception ex)
@@ -182,25 +189,6 @@ namespace VMS.TPS
                         $"{ex.Message}\n\n{ex.StackTrace}");
                     throw;
                 }
-                //// create temp structures for each iso
-                //int idx = 1;
-                //var isoStruts = beamGroups.Select(bg =>
-                //{
-                //    var sId = $"ISO_{idx++}";
-                //    var isoStruct = _ss.AddStructure("CONTROL", sId);
-
-                //    // use body contour and boolean is with beam junction
-                //    var body = _ss.Structures.FirstOrDefault(s => s.DicomType == "EXTERNAL");
-                //    if (body != null)
-                //    {
-                //        isoStruct.SegmentVolume = body.SegmentVolume;
-                //    }
-                //    return isoStruct;
-                //}).ToList();
-
-                //// boolean those with PTV_CSI
-                //var junctionId = "JUNCTION";
-
             }
             catch (Exception ex)
             {
