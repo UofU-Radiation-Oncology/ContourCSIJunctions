@@ -28,6 +28,7 @@ namespace VMS.TPS
         public Script()
         {
         }
+        // I AM WORKING IN DROP DOWNCONTOUR VERIOSN
         // variable initialization
         private Patient _patient;
         private Course _course;
