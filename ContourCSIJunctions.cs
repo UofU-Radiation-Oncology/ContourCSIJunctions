@@ -137,12 +137,12 @@ namespace VMS.TPS
                     }
 
                     // Contour junctions between isocenter contours
-                    for (int j = 0; j < beamGroups.Count - 1; j++) // if beamCount is 3, j will be 1 and 2
+                    for (int j = 1; j < beamGroups.Count; j++) // if beamCount is 3, j will be 1 and 2
                     {
 
                         string structIdA = $"BEAM_ISO_{j}";
                         string structIdB = $"BEAM_ISO_{(j + 1)}";
-                        string juncStructId = $"JUNC_{(j + 1)}";
+                        string juncStructId = $"JUNC_{j}";
 
                         Structure structA = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdA));
                         Structure structB = _ss.Structures.FirstOrDefault(s => s.Id.Equals(structIdB));
