@@ -17,7 +17,7 @@ using System.Windows.Media.Media3D;
 [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyFileVersion("1.0.0")]
 [assembly: AssemblyInformationalVersion("1.0")]
-// tiny change
+
 // Script needs write access
 [assembly: ESAPIScript(IsWriteable = true)]
 
